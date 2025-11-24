@@ -108,6 +108,17 @@ body {
   top: -0.1em;
 }
 
+.pronouns {
+  border-radius: 5px;
+  border: 1.5px solid var(--text-color, #fafafa);
+  padding: 3px;
+  margin-left: 2px;
+  margin-right: 2px;
+  box-shadow:
+    0 0 1px #000,
+    0 0 2px #000;
+}
+
 .name {
   margin-left: 0.2em;
 }
