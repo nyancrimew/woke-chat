@@ -12,7 +12,7 @@ const overrides = {
     // "emote_id": null, // remove emote
   }
 };
-const userAgent = "pronouns-chat/7.0.0 (https://github.com/liquidnya/pronouns-chat)";
+const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)";
 /*! version 7.0.0 */
 (function() {
   "use strict";
