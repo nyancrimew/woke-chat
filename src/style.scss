@@ -91,6 +91,10 @@ body {
   white-space: nowrap;
 }
 
+#log .meta::after {
+  content: ":";
+}
+
 #log .message {
   overflow-wrap: break-word;
 }
