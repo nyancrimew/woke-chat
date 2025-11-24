@@ -73,7 +73,7 @@ const settings = `const overrides = {
     // "emote_id": null, // remove emote
   }
 };
-const userAgent = ${JSON.stringify(`${name}/${version} (https://github.com/liquidnya/pronouns-chat)`)};`;
+const userAgent = ${JSON.stringify(`${name}/${version} (https://github.com/nyancrimew/woke-chat)`)};`;
 
 const banner = `${settings}
 /*! version ${version} */`;
