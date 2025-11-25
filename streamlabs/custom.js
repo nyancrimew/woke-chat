@@ -20,8 +20,7 @@ const overrides = {
     // "emote_id": null, // remove emote
   }
 };
-const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)";
-/*! version 7.0.0 */
+const userAgent = "woke-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)";
 (function() {
   "use strict";
   class ClearChat {
@@ -1685,30 +1684,39 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   }
   function $constructor(name, initializer2, params) {
     function init(inst, def) {
-      var _a;
-      Object.defineProperty(inst, "_zod", {
-        value: inst._zod ?? {},
-        enumerable: false
-      });
-      (_a = inst._zod).traits ?? (_a.traits = /* @__PURE__ */ new Set());
+      if (!inst._zod) {
+        Object.defineProperty(inst, "_zod", {
+          value: {
+            def,
+            constr: _,
+            traits: /* @__PURE__ */ new Set()
+          },
+          enumerable: false
+        });
+      }
+      if (inst._zod.traits.has(name)) {
+        return;
+      }
       inst._zod.traits.add(name);
       initializer2(inst, def);
-      for (const k in _.prototype) {
-        if (!(k in inst))
-          Object.defineProperty(inst, k, { value: _.prototype[k].bind(inst) });
+      const proto = _.prototype;
+      const keys = Object.keys(proto);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (!(k in inst)) {
+          inst[k] = proto[k].bind(inst);
+        }
       }
-      inst._zod.constr = _;
-      inst._zod.def = def;
     }
     const Parent = params?.Parent ?? Object;
     class Definition extends Parent {
     }
     Object.defineProperty(Definition, "name", { value: name });
     function _(def) {
-      var _a;
+      var _a2;
       const inst = params?.Parent ? new Definition() : this;
       init(inst, def);
-      (_a = inst._zod).deferred ?? (_a.deferred = []);
+      (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
       for (const fn of inst._zod.deferred) {
         fn();
       }
@@ -1755,14 +1763,19 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     const end = source.endsWith("$") ? source.length - 1 : source.length;
     return source.slice(start, end);
   }
+  const EVALUATING = Symbol("evaluating");
   function defineLazy(object, key, getter) {
+    let value = void 0;
     Object.defineProperty(object, key, {
       get() {
-        {
-          const value = getter();
-          object[key] = value;
-          return value;
+        if (value === EVALUATING) {
+          return void 0;
         }
+        if (value === void 0) {
+          value = EVALUATING;
+          value = getter();
+        }
+        return value;
       },
       set(v) {
         Object.defineProperty(object, key, {
@@ -1773,47 +1786,18 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       configurable: true
     });
   }
-  function assignProp(target, prop, value) {
-    Object.defineProperty(target, prop, {
-      value,
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-  }
-  function randomString(length = 10) {
-    const chars = "abcdefghijklmnopqrstuvwxyz";
-    let str = "";
-    for (let i = 0; i < length; i++) {
-      str += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return str;
-  }
-  function esc(str) {
-    return JSON.stringify(str);
-  }
-  const captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
+  const captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
   };
   function isObject(data) {
     return typeof data === "object" && data !== null && !Array.isArray(data);
   }
-  const allowsEval = cached(() => {
-    if (typeof navigator !== "undefined" && navigator?.userAgent?.includes("Cloudflare")) {
-      return false;
-    }
-    try {
-      const F = Function;
-      new F("");
-      return true;
-    } catch (_) {
-      return false;
-    }
-  });
   function isPlainObject(o) {
     if (isObject(o) === false)
       return false;
     const ctor = o.constructor;
     if (ctor === void 0)
+      return true;
+    if (typeof ctor !== "function")
       return true;
     const prot = ctor.prototype;
     if (isObject(prot) === false)
@@ -1838,16 +1822,19 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     });
   }
   function aborted(x, startIndex = 0) {
+    if (x.aborted === true)
+      return true;
     for (let i = startIndex; i < x.issues.length; i++) {
-      if (x.issues[i]?.continue !== true)
+      if (x.issues[i]?.continue !== true) {
         return true;
+      }
     }
     return false;
   }
   function prefixIssues(path, issues) {
     return issues.map((iss) => {
-      var _a;
-      (_a = iss).path ?? (_a.path = []);
+      var _a2;
+      (_a2 = iss).path ?? (_a2.path = []);
       iss.path.unshift(path);
       return iss;
     });
@@ -1878,12 +1865,10 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       value: def,
       enumerable: false
     });
-    Object.defineProperty(inst, "message", {
-      get() {
-        return JSON.stringify(def, jsonStringifyReplacer, 2);
-      },
-      enumerable: true
-      // configurable: false,
+    inst.message = JSON.stringify(def, jsonStringifyReplacer, 2);
+    Object.defineProperty(inst, "toString", {
+      value: () => inst.message,
+      enumerable: false
     });
   };
   const $ZodError = $constructor("$ZodError", initializer);
@@ -1942,50 +1927,15 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
     return new RegExp(`^${regex}$`);
   };
-  const boolean$1 = /true|false/i;
-  class Doc {
-    constructor(args = []) {
-      this.content = [];
-      this.indent = 0;
-      if (this)
-        this.args = args;
-    }
-    indented(fn) {
-      this.indent += 1;
-      fn(this);
-      this.indent -= 1;
-    }
-    write(arg) {
-      if (typeof arg === "function") {
-        arg(this, { execution: "sync" });
-        arg(this, { execution: "async" });
-        return;
-      }
-      const content = arg;
-      const lines = content.split("\n").filter((x) => x);
-      const minIndent = Math.min(...lines.map((x) => x.length - x.trimStart().length));
-      const dedented = lines.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
-      for (const line of dedented) {
-        this.content.push(line);
-      }
-    }
-    compile() {
-      const F = Function;
-      const args = this?.args;
-      const content = this?.content ?? [``];
-      const lines = [...content.map((x) => `  ${x}`)];
-      return new F(...args, lines.join("\n"));
-    }
-  }
+  const boolean$1 = /^(?:true|false)$/i;
   const version = {
     major: 4,
-    minor: 0,
-    patch: 0
+    minor: 1,
+    patch: 13
   };
   const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
-    var _a;
+    var _a2;
     inst ?? (inst = {});
-    defineLazy(inst._zod, "id", () => def.type + "_" + randomString(10));
     inst._zod.def = def;
     inst._zod.bag = inst._zod.bag || {};
     inst._zod.version = version;
@@ -1999,7 +1949,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
     }
     if (checks.length === 0) {
-      (_a = inst._zod).deferred ?? (_a.deferred = []);
+      (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
       inst._zod.deferred?.push(() => {
         inst._zod.run = inst._zod.parse;
       });
@@ -2008,8 +1958,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         let isAborted = aborted(payload);
         let asyncResult;
         for (const ch of checks2) {
-          if (ch._zod.when) {
-            const shouldRun = ch._zod.when(payload);
+          if (ch._zod.def.when) {
+            const shouldRun = ch._zod.def.when(payload);
             if (!shouldRun)
               continue;
           } else if (isAborted) {
@@ -2044,7 +1994,32 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         }
         return payload;
       };
+      const handleCanaryResult = (canary, payload, ctx) => {
+        if (aborted(canary)) {
+          canary.aborted = true;
+          return canary;
+        }
+        const checkResult = runChecks(payload, checks, ctx);
+        if (checkResult instanceof Promise) {
+          if (ctx.async === false)
+            throw new $ZodAsyncError();
+          return checkResult.then((checkResult2) => inst._zod.parse(checkResult2, ctx));
+        }
+        return inst._zod.parse(checkResult, ctx);
+      };
       inst._zod.run = (payload, ctx) => {
+        if (ctx.skipChecks) {
+          return inst._zod.parse(payload, ctx);
+        }
+        if (ctx.direction === "backward") {
+          const canary = inst._zod.parse({ value: payload.value, issues: [] }, { ...ctx, skipChecks: true });
+          if (canary instanceof Promise) {
+            return canary.then((canary2) => {
+              return handleCanaryResult(canary2, payload, ctx);
+            });
+          }
+          return handleCanaryResult(canary, payload, ctx);
+        }
         const result = inst._zod.parse(payload, ctx);
         if (result instanceof Promise) {
           if (ctx.async === false)
@@ -2151,48 +2126,83 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return payload;
     };
   });
-  function handleObjectResult(result, final, key) {
+  function handlePropertyResult(result, final, key, input) {
     if (result.issues.length) {
       final.issues.push(...prefixIssues(key, result.issues));
     }
-    final.value[key] = result.value;
-  }
-  function handleOptionalObjectResult(result, final, key, input) {
-    if (result.issues.length) {
-      if (input[key] === void 0) {
-        if (key in input) {
-          final.value[key] = void 0;
-        } else {
-          final.value[key] = result.value;
-        }
-      } else {
-        final.issues.push(...prefixIssues(key, result.issues));
-      }
-    } else if (result.value === void 0) {
-      if (key in input)
+    if (result.value === void 0) {
+      if (key in input) {
         final.value[key] = void 0;
+      }
     } else {
       final.value[key] = result.value;
     }
   }
+  function normalizeDef(def) {
+    const keys = Object.keys(def.shape);
+    for (const k of keys) {
+      if (!def.shape?.[k]?._zod?.traits?.has("$ZodType")) {
+        throw new Error(`Invalid element at key "${k}": expected a Zod schema`);
+      }
+    }
+    const okeys = optionalKeys(def.shape);
+    return {
+      ...def,
+      keys,
+      keySet: new Set(keys),
+      numKeys: keys.length,
+      optionalKeys: new Set(okeys)
+    };
+  }
+  function handleCatchall(proms, input, payload, ctx, def, inst) {
+    const unrecognized = [];
+    const keySet = def.keySet;
+    const _catchall = def.catchall._zod;
+    const t = _catchall.def.type;
+    for (const key in input) {
+      if (keySet.has(key))
+        continue;
+      if (t === "never") {
+        unrecognized.push(key);
+        continue;
+      }
+      const r2 = _catchall.run({ value: input[key], issues: [] }, ctx);
+      if (r2 instanceof Promise) {
+        proms.push(r2.then((r3) => handlePropertyResult(r3, payload, key, input)));
+      } else {
+        handlePropertyResult(r2, payload, key, input);
+      }
+    }
+    if (unrecognized.length) {
+      payload.issues.push({
+        code: "unrecognized_keys",
+        keys: unrecognized,
+        input,
+        inst
+      });
+    }
+    if (!proms.length)
+      return payload;
+    return Promise.all(proms).then(() => {
+      return payload;
+    });
+  }
   const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     $ZodType.init(inst, def);
-    const _normalized = cached(() => {
-      const keys = Object.keys(def.shape);
-      for (const k of keys) {
-        if (!(def.shape[k] instanceof $ZodType)) {
-          throw new Error(`Invalid element at key "${k}": expected a Zod schema`);
+    const desc = Object.getOwnPropertyDescriptor(def, "shape");
+    if (!desc?.get) {
+      const sh = def.shape;
+      Object.defineProperty(def, "shape", {
+        get: () => {
+          const newSh = { ...sh };
+          Object.defineProperty(def, "shape", {
+            value: newSh
+          });
+          return newSh;
         }
-      }
-      const okeys = optionalKeys(def.shape);
-      return {
-        shape: def.shape,
-        keys,
-        keySet: new Set(keys),
-        numKeys: keys.length,
-        optionalKeys: new Set(okeys)
-      };
-    });
+      });
+    }
+    const _normalized = cached(() => normalizeDef(def));
     defineLazy(inst._zod, "propValues", () => {
       const shape = def.shape;
       const propValues = {};
@@ -2206,66 +2216,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
       return propValues;
     });
-    const generateFastpass = (shape) => {
-      const doc = new Doc(["shape", "payload", "ctx"]);
-      const { keys, optionalKeys: optionalKeys2 } = _normalized.value;
-      const parseStr = (key) => {
-        const k = esc(key);
-        return `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
-      };
-      doc.write(`const input = payload.value;`);
-      const ids = /* @__PURE__ */ Object.create(null);
-      for (const key of keys) {
-        ids[key] = randomString(15);
-      }
-      doc.write(`const newResult = {}`);
-      for (const key of keys) {
-        if (optionalKeys2.has(key)) {
-          const id = ids[key];
-          doc.write(`const ${id} = ${parseStr(key)};`);
-          const k = esc(key);
-          doc.write(`
-        if (${id}.issues.length) {
-          if (input[${k}] === undefined) {
-            if (${k} in input) {
-              newResult[${k}] = undefined;
-            }
-          } else {
-            payload.issues = payload.issues.concat(
-              ${id}.issues.map((iss) => ({
-                ...iss,
-                path: iss.path ? [${k}, ...iss.path] : [${k}],
-              }))
-            );
-          }
-        } else if (${id}.value === undefined) {
-          if (${k} in input) newResult[${k}] = undefined;
-        } else {
-          newResult[${k}] = ${id}.value;
-        }
-        `);
-        } else {
-          const id = ids[key];
-          doc.write(`const ${id} = ${parseStr(key)};`);
-          doc.write(`
-          if (${id}.issues.length) payload.issues = payload.issues.concat(${id}.issues.map(iss => ({
-            ...iss,
-            path: iss.path ? [${esc(key)}, ...iss.path] : [${esc(key)}]
-          })));`);
-          doc.write(`newResult[${esc(key)}] = ${id}.value`);
-        }
-      }
-      doc.write(`payload.value = newResult;`);
-      doc.write(`return payload;`);
-      const fn = doc.compile();
-      return (payload, ctx) => fn(shape, payload, ctx);
-    };
-    let fastpass;
     const isObject$1 = isObject;
-    const jit = !globalConfig.jitless;
-    const allowsEval$1 = allowsEval;
-    const fastEnabled = jit && allowsEval$1.value;
-    const { catchall } = def;
+    const catchall = def.catchall;
     let value;
     inst._zod.parse = (payload, ctx) => {
       value ?? (value = _normalized.value);
@@ -2279,61 +2231,22 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         });
         return payload;
       }
+      payload.value = {};
       const proms = [];
-      if (jit && fastEnabled && ctx?.async === false && ctx.jitless !== true) {
-        if (!fastpass)
-          fastpass = generateFastpass(def.shape);
-        payload = fastpass(payload, ctx);
-      } else {
-        payload.value = {};
-        const shape = value.shape;
-        for (const key of value.keys) {
-          const el = shape[key];
-          const r2 = el._zod.run({ value: input[key], issues: [] }, ctx);
-          const isOptional = el._zod.optin === "optional" && el._zod.optout === "optional";
-          if (r2 instanceof Promise) {
-            proms.push(r2.then((r3) => isOptional ? handleOptionalObjectResult(r3, payload, key, input) : handleObjectResult(r3, payload, key)));
-          } else if (isOptional) {
-            handleOptionalObjectResult(r2, payload, key, input);
-          } else {
-            handleObjectResult(r2, payload, key);
-          }
+      const shape = value.shape;
+      for (const key of value.keys) {
+        const el = shape[key];
+        const r2 = el._zod.run({ value: input[key], issues: [] }, ctx);
+        if (r2 instanceof Promise) {
+          proms.push(r2.then((r3) => handlePropertyResult(r3, payload, key, input)));
+        } else {
+          handlePropertyResult(r2, payload, key, input);
         }
       }
       if (!catchall) {
         return proms.length ? Promise.all(proms).then(() => payload) : payload;
       }
-      const unrecognized = [];
-      const keySet = value.keySet;
-      const _catchall = catchall._zod;
-      const t = _catchall.def.type;
-      for (const key of Object.keys(input)) {
-        if (keySet.has(key))
-          continue;
-        if (t === "never") {
-          unrecognized.push(key);
-          continue;
-        }
-        const r2 = _catchall.run({ value: input[key], issues: [] }, ctx);
-        if (r2 instanceof Promise) {
-          proms.push(r2.then((r3) => handleObjectResult(r3, payload, key)));
-        } else {
-          handleObjectResult(r2, payload, key);
-        }
-      }
-      if (unrecognized.length) {
-        payload.issues.push({
-          code: "unrecognized_keys",
-          keys: unrecognized,
-          input,
-          inst
-        });
-      }
-      if (!proms.length)
-        return payload;
-      return Promise.all(proms).then(() => {
-        return payload;
-      });
+      return handleCatchall(proms, input, payload, ctx, _normalized.value, inst);
     };
   });
   const $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
@@ -2350,11 +2263,13 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         return payload;
       }
       const proms = [];
-      if (def.keyType._zod.values) {
-        const values = def.keyType._zod.values;
+      const values = def.keyType._zod.values;
+      if (values) {
         payload.value = {};
+        const recordKeys = /* @__PURE__ */ new Set();
         for (const key of values) {
           if (typeof key === "string" || typeof key === "number" || typeof key === "symbol") {
+            recordKeys.add(typeof key === "number" ? key.toString() : key);
             const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
             if (result instanceof Promise) {
               proms.push(result.then((result2) => {
@@ -2373,7 +2288,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         }
         let unrecognized;
         for (const key in input) {
-          if (!values.has(key)) {
+          if (!recordKeys.has(key)) {
             unrecognized = unrecognized ?? [];
             unrecognized.push(key);
           }
@@ -2397,8 +2312,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
           }
           if (keyResult.issues.length) {
             payload.issues.push({
-              origin: "record",
               code: "invalid_key",
+              origin: "record",
               issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
               input: key,
               path: [key],
@@ -2429,6 +2344,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return payload;
     };
   });
+  function handleOptionalResult(result, input) {
+    if (result.issues.length && input === void 0) {
+      return { issues: [], value: void 0 };
+    }
+    return result;
+  }
   const $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def) => {
     $ZodType.init(inst, def);
     inst._zod.optin = "optional";
@@ -2441,6 +2362,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return pattern ? new RegExp(`^(${cleanRegex(pattern.source)})?$`) : void 0;
     });
     inst._zod.parse = (payload, ctx) => {
+      if (def.innerType._zod.optin === "optional") {
+        const result = def.innerType._zod.run(payload, ctx);
+        if (result instanceof Promise)
+          return result.then((r2) => handleOptionalResult(r2, payload.value));
+        return handleOptionalResult(result, payload.value);
+      }
       if (payload.value === void 0) {
         return payload;
       }
@@ -2464,6 +2391,54 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return def.innerType._zod.run(payload, ctx);
     };
   });
+  var _a;
+  class $ZodRegistry {
+    constructor() {
+      this._map = /* @__PURE__ */ new WeakMap();
+      this._idmap = /* @__PURE__ */ new Map();
+    }
+    add(schema, ..._meta) {
+      const meta = _meta[0];
+      this._map.set(schema, meta);
+      if (meta && typeof meta === "object" && "id" in meta) {
+        if (this._idmap.has(meta.id)) {
+          throw new Error(`ID ${meta.id} already exists in the registry`);
+        }
+        this._idmap.set(meta.id, schema);
+      }
+      return this;
+    }
+    clear() {
+      this._map = /* @__PURE__ */ new WeakMap();
+      this._idmap = /* @__PURE__ */ new Map();
+      return this;
+    }
+    remove(schema) {
+      const meta = this._map.get(schema);
+      if (meta && typeof meta === "object" && "id" in meta) {
+        this._idmap.delete(meta.id);
+      }
+      this._map.delete(schema);
+      return this;
+    }
+    get(schema) {
+      const p = schema._zod.parent;
+      if (p) {
+        const pm = { ...this.get(p) ?? {} };
+        delete pm.id;
+        const f = { ...pm, ...this._map.get(schema) };
+        return Object.keys(f).length ? f : void 0;
+      }
+      return this._map.get(schema);
+    }
+    has(schema) {
+      return this._map.has(schema);
+    }
+  }
+  function registry() {
+    return new $ZodRegistry();
+  }
+  (_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry());
   function _string(Class, params) {
     return new Class({
       type: "string",
@@ -2486,6 +2461,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       throw new Error("Uninitialized schema in ZodMiniType.");
     $ZodType.init(inst, def);
     inst.def = def;
+    inst.type = def.type;
     inst.parse = (data, params) => parse(inst, data, params, { callee: inst.parse });
     inst.safeParse = (data, params) => safeParse(inst, data, params);
     inst.parseAsync = async (data, params) => parseAsync(inst, data, params, { callee: inst.parseAsync });
@@ -2504,10 +2480,10 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     };
     inst.clone = (_def, params) => clone(inst, _def, params);
     inst.brand = () => inst;
-    inst.register = (reg, meta) => {
+    inst.register = ((reg, meta) => {
       reg.add(inst, meta);
       return inst;
-    };
+    });
   });
   const ZodMiniString = /* @__PURE__ */ $constructor("ZodMiniString", (inst, def) => {
     $ZodString.init(inst, def);
@@ -2549,14 +2525,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   function looseObject(shape, params) {
     return new ZodMiniObject({
       type: "object",
-      // shape: shape as core.$ZodLooseShape,
-      get shape() {
-        assignProp(this, "shape", { ...shape });
-        return this.shape;
-      },
-      // get optional() {
-      //   return util.optionalKeys(shape);
-      // },
+      shape,
       catchall: unknown(),
       ...normalizeParams()
     });
@@ -2897,23 +2866,6 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
     }
   };
-  /*! modified code of FFZ emote modifiers implementation */
-  /*! https://github.com/FrankerFaceZ/FrankerFaceZ/blob/daa193aa030cc29fd5706351677ddeb9079741ae/src/modules/chat/emotes.js */
-  /*!
-    Copyright 2016 Dan Salvato LLC
-  
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-  
-        http://www.apache.org/licenses/LICENSE-2.0
-  
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-    */
   class EmoteModifiers {
     constructor() {
       this.className = "modified-emote";
@@ -3115,8 +3067,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       api.forClass("badge", HTMLImageElement, this.fixBadge.bind(this));
     }
   };
-  /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */
-  var twemoji$1 = function() {
+  var twemoji$1 = (function() {
     var twemoji2 = { base: "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/", ext: ".png", size: "72x72", className: "emoji", convert: { fromCodePoint, toCodePoint }, onerror: function onerror() {
       if (this.parentNode) {
         this.parentNode.replaceChild(createText(this.alt, false), this);
@@ -3256,7 +3207,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
       return r2.join(sep || "-");
     }
-  }();
+  })();
   const twemoji = {
     replaceMessage(message) {
       twemoji$1.parse(message);
@@ -3288,429 +3239,3 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   ]);
   handlers.run();
 })();
-/*!
-Bundled license information:
-- @discordapp/twemoji@16.0.1:
-Licensed under MIT AND CC-BY-4.0.
-Repository: https://github.com/discord/twemoji
-MIT License
-
-Copyright (c) 2022–present Jason Sofonia & Justine De Caires
-Copyright (c) 2014–2021 Twitter
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- @inventivetalent/loading-cache@0.7.1:
-Published by Haylee Schäfer and licensed under MIT.
-Repository: https://github.com/InventivetalentDev/loading-cache
-MIT License
-
-Copyright (c) 2020 Haylee Schäfer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- @inventivetalent/time@1.0.3:
-Published by Haylee Schäfer and licensed under MIT.
-
-MIT License
-
-Copyright (c) 2021 Haylee Schäfer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- @twemoji/parser@16.0.0:
-Licensed under MIT.
-Repository: https://github.com/jdecked/twemoji-parser
-MIT License
-
-Copyright (c) 2022–present Jason Sofonia & Justine De Caires
-Copyright (c) 2018–2021 Twitter
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-- animate.css@4.1.1:
-Published by Animate.css and licensed under MIT.
-Repository: https://github.com/animate-css/animate.css
-The MIT License (MIT)
-
-Copyright (c) 2020 Daniel Eden
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- color2k@2.0.3:
-Published by Rico Kahler and licensed under MIT.
-Repository: https://github.com/ricokahler/color2k
-MIT License
-
-Copyright (c) 2020 Rico Kahler
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- events@3.3.0:
-Published by Irakli Gozalishvili and licensed under MIT.
-Repository: https://github.com/Gozala/events
-MIT
-
-Copyright Joyent, Inc. and other Node contributors.
-
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to permit
-persons to whom the Software is furnished to do so, subject to the
-following conditions:
-
-The above copyright notice and this permission notice shall be included
-in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- fs-extra@8.1.0:
-Published by JP Richardson and licensed under MIT.
-Repository: https://github.com/jprichardson/node-fs-extra
-(The MIT License)
-
-Copyright (c) 2011-2017 JP Richardson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
-(the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify,
- merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- graceful-fs@4.2.11:
-Licensed under ISC.
-Repository: https://github.com/isaacs/node-graceful-fs
-The ISC License
-
-Copyright (c) 2011-2022 Isaac Z. Schlueter, Ben Noordhuis, and Contributors
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
-IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-- hash-it@6.0.0:
-Published by planttheidea and licensed under MIT.
-Repository: https://github.com/planttheidea/hash-it
-The MIT License (MIT)
-
-Copyright (c) 2015 Plant The Idea
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-- jsonfile@4.0.0:
-Published by JP Richardson and licensed under MIT.
-Repository: https://github.com/jprichardson/node-jsonfile
-(The MIT License)
-
-Copyright (c) 2012-2015, JP Richardson <jprichardson@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
-(the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify,
- merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- jsonfile@5.0.0:
-Published by JP Richardson and licensed under MIT.
-Repository: https://github.com/jprichardson/node-jsonfile
-(The MIT License)
-
-Copyright (c) 2012-2015, JP Richardson <jprichardson@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
-(the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify,
- merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- pronouns-chat@7.0.0:
-Licensed under MIT*.
-
-The following files have their license information within the file itself:
-- src/features/ffz.ts
-- src/features/ffz.css
-- streamlabs/custom.css
-- streamlabs/custom.js
-- streamelements/custom.css
-- streamelements/custom.js
-
-All other fies are distributed under the following license:
-
-MIT License
-
-Copyright (c) 2023 Nya
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-- typescript@4.9.5:
-Published by Microsoft Corp. and licensed under Apache-2.0.
-Repository: https://github.com/Microsoft/TypeScript
-Apache License
-
-Version 2.0, January 2004
-
-http://www.apache.org/licenses/ 
-
-TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-1. Definitions.
-
-"License" shall mean the terms and conditions for use, reproduction, and distribution as defined by Sections 1 through 9 of this document.
-
-"Licensor" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.
-
-"Legal Entity" shall mean the union of the acting entity and all other entities that control, are controlled by, or are under common control with that entity. For the purposes of this definition, "control" means (i) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (ii) ownership of fifty percent (50%) or more of the outstanding shares, or (iii) beneficial ownership of such entity.
-
-"You" (or "Your") shall mean an individual or Legal Entity exercising permissions granted by this License.
-
-"Source" form shall mean the preferred form for making modifications, including but not limited to software source code, documentation source, and configuration files.
-
-"Object" form shall mean any form resulting from mechanical transformation or translation of a Source form, including but not limited to compiled object code, generated documentation, and conversions to other media types.
-
-"Work" shall mean the work of authorship, whether in Source or Object form, made available under the License, as indicated by a copyright notice that is included in or attached to the work (an example is provided in the Appendix below).
-
-"Derivative Works" shall mean any work, whether in Source or Object form, that is based on (or derived from) the Work and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Work and Derivative Works thereof.
-
-"Contribution" shall mean any work of authorship, including the original version of the Work and any modifications or additions to that Work or Derivative Works thereof, that is intentionally submitted to Licensor for inclusion in the Work by the copyright owner or by an individual or Legal Entity authorized to submit on behalf of the copyright owner. For the purposes of this definition, "submitted" means any form of electronic, verbal, or written communication sent to the Licensor or its representatives, including but not limited to communication on electronic mailing lists, source code control systems, and issue tracking systems that are managed by, or on behalf of, the Licensor for the purpose of discussing and improving the Work, but excluding communication that is conspicuously marked or otherwise designated in writing by the copyright owner as "Not a Contribution."
-
-"Contributor" shall mean Licensor and any individual or Legal Entity on behalf of whom a Contribution has been received by Licensor and subsequently incorporated within the Work.
-
-2. Grant of Copyright License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare Derivative Works of, publicly display, publicly perform, sublicense, and distribute the Work and such Derivative Works in Source or Object form.
-
-3. Grant of Patent License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated in this section) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work to which such Contribution(s) was submitted. If You institute patent litigation against any entity (including a cross-claim or counterclaim in a lawsuit) alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.
-
-4. Redistribution. You may reproduce and distribute copies of the Work or Derivative Works thereof in any medium, with or without modifications, and in Source or Object form, provided that You meet the following conditions:
-
-You must give any other recipients of the Work or Derivative Works a copy of this License; and
-
-You must cause any modified files to carry prominent notices stating that You changed the files; and
-
-You must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work, excluding those notices that do not pertain to any part of the Derivative Works; and
-
-If the Work includes a "NOTICE" text file as part of its distribution, then any Derivative Works that You distribute must include a readable copy of the attribution notices contained within such NOTICE file, excluding those notices that do not pertain to any part of the Derivative Works, in at least one of the following places: within a NOTICE text file distributed as part of the Derivative Works; within the Source form or documentation, if provided along with the Derivative Works; or, within a display generated by the Derivative Works, if and wherever such third-party notices normally appear. The contents of the NOTICE file are for informational purposes only and do not modify the License. You may add Your own attribution notices within Derivative Works that You distribute, alongside or as an addendum to the NOTICE text from the Work, provided that such additional attribution notices cannot be construed as modifying the License. You may add Your own copyright statement to Your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of Your modifications, or for any such Derivative Works as a whole, provided Your use, reproduction, and distribution of the Work otherwise complies with the conditions stated in this License.
-
-5. Submission of Contributions. Unless You explicitly state otherwise, any Contribution intentionally submitted for inclusion in the Work by You to the Licensor shall be under the terms and conditions of this License, without any additional terms or conditions. Notwithstanding the above, nothing herein shall supersede or modify the terms of any separate license agreement you may have executed with Licensor regarding such Contributions.
-
-6. Trademarks. This License does not grant permission to use the trade names, trademarks, service marks, or product names of the Licensor, except as required for reasonable and customary use in describing the origin of the Work and reproducing the content of the NOTICE file.
-
-7. Disclaimer of Warranty. Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or redistributing the Work and assume any risks associated with Your exercise of permissions under this License.
-
-8. Limitation of Liability. In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall any Contributor be liable to You for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising as a result of this License or out of the use or inability to use the Work (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if such Contributor has been advised of the possibility of such damages.
-
-9. Accepting Warranty or Additional Liability. While redistributing the Work or Derivative Works thereof, You may choose to offer, and charge a fee for, acceptance of support, warranty, indemnity, or other liability obligations and/or rights consistent with this License. However, in accepting such obligations, You may act only on Your own behalf and on Your sole responsibility, not on behalf of any other Contributor, and only if You agree to indemnify, defend, and hold each Contributor harmless for any liability incurred by, or claims asserted against, such Contributor by reason of your accepting any such warranty or additional liability.
-
-END OF TERMS AND CONDITIONS
-
-- universalify@0.1.2:
-Published by Ryan Zimmerman and licensed under MIT.
-Repository: https://github.com/RyanZim/universalify
-(The MIT License)
-
-Copyright (c) 2017, Ryan Zimmerman <opensrc@ryanzim.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the 'Software'), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- zod@3.25.68:
-Published by Colin McDonnell and licensed under MIT.
-Repository: https://github.com/colinhacks/zod
-MIT License
-
-Copyright (c) 2025 Colin McDonnell
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-*/

@@ -12,36 +12,45 @@ const overrides = {
     // "emote_id": null, // remove emote
   }
 };
-const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)";
+const userAgent = "woke-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)";
 /*! version 7.0.0 */
 (function() {
   "use strict";
   function $constructor(name, initializer2, params) {
     function init(inst, def) {
-      var _a;
-      Object.defineProperty(inst, "_zod", {
-        value: inst._zod ?? {},
-        enumerable: false
-      });
-      (_a = inst._zod).traits ?? (_a.traits = /* @__PURE__ */ new Set());
+      if (!inst._zod) {
+        Object.defineProperty(inst, "_zod", {
+          value: {
+            def,
+            constr: _,
+            traits: /* @__PURE__ */ new Set()
+          },
+          enumerable: false
+        });
+      }
+      if (inst._zod.traits.has(name)) {
+        return;
+      }
       inst._zod.traits.add(name);
       initializer2(inst, def);
-      for (const k in _.prototype) {
-        if (!(k in inst))
-          Object.defineProperty(inst, k, { value: _.prototype[k].bind(inst) });
+      const proto = _.prototype;
+      const keys = Object.keys(proto);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (!(k in inst)) {
+          inst[k] = proto[k].bind(inst);
+        }
       }
-      inst._zod.constr = _;
-      inst._zod.def = def;
     }
     const Parent = params?.Parent ?? Object;
     class Definition extends Parent {
     }
     Object.defineProperty(Definition, "name", { value: name });
     function _(def) {
-      var _a;
+      var _a2;
       const inst = params?.Parent ? new Definition() : this;
       init(inst, def);
-      (_a = inst._zod).deferred ?? (_a.deferred = []);
+      (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
       for (const fn of inst._zod.deferred) {
         fn();
       }
@@ -61,6 +70,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   class $ZodAsyncError extends Error {
     constructor() {
       super(`Encountered Promise during synchronous parse. Use .parseAsync() instead.`);
+    }
+  }
+  class $ZodEncodeError extends Error {
+    constructor(name) {
+      super(`Encountered unidirectional transform during encode: ${name}`);
+      this.name = "ZodEncodeError";
     }
   }
   const globalConfig = {};
@@ -88,14 +103,19 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     const end = source.endsWith("$") ? source.length - 1 : source.length;
     return source.slice(start, end);
   }
+  const EVALUATING = Symbol("evaluating");
   function defineLazy(object2, key, getter) {
+    let value = void 0;
     Object.defineProperty(object2, key, {
       get() {
-        {
-          const value = getter();
-          object2[key] = value;
-          return value;
+        if (value === EVALUATING) {
+          return void 0;
         }
+        if (value === void 0) {
+          value = EVALUATING;
+          value = getter();
+        }
+        return value;
       },
       set(v) {
         Object.defineProperty(object2, key, {
@@ -106,47 +126,18 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       configurable: true
     });
   }
-  function assignProp(target, prop, value) {
-    Object.defineProperty(target, prop, {
-      value,
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-  }
-  function randomString(length = 10) {
-    const chars = "abcdefghijklmnopqrstuvwxyz";
-    let str = "";
-    for (let i = 0; i < length; i++) {
-      str += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return str;
-  }
-  function esc(str) {
-    return JSON.stringify(str);
-  }
-  const captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
+  const captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
   };
   function isObject(data) {
     return typeof data === "object" && data !== null && !Array.isArray(data);
   }
-  const allowsEval = cached(() => {
-    if (typeof navigator !== "undefined" && navigator?.userAgent?.includes("Cloudflare")) {
-      return false;
-    }
-    try {
-      const F = Function;
-      new F("");
-      return true;
-    } catch (_) {
-      return false;
-    }
-  });
   function isPlainObject(o) {
     if (isObject(o) === false)
       return false;
     const ctor = o.constructor;
     if (ctor === void 0)
+      return true;
+    if (typeof ctor !== "function")
       return true;
     const prot = ctor.prototype;
     if (isObject(prot) === false)
@@ -155,6 +146,13 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return false;
     }
     return true;
+  }
+  function shallowClone(o) {
+    if (isPlainObject(o))
+      return { ...o };
+    if (Array.isArray(o))
+      return [...o];
+    return o;
   }
   function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -194,16 +192,19 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
   };
   function aborted(x, startIndex = 0) {
+    if (x.aborted === true)
+      return true;
     for (let i = startIndex; i < x.issues.length; i++) {
-      if (x.issues[i]?.continue !== true)
+      if (x.issues[i]?.continue !== true) {
         return true;
+      }
     }
     return false;
   }
   function prefixIssues(path, issues) {
     return issues.map((iss) => {
-      var _a;
-      (_a = iss).path ?? (_a.path = []);
+      var _a2;
+      (_a2 = iss).path ?? (_a2.path = []);
       iss.path.unshift(path);
       return iss;
     });
@@ -234,12 +235,10 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       value: def,
       enumerable: false
     });
-    Object.defineProperty(inst, "message", {
-      get() {
-        return JSON.stringify(def, jsonStringifyReplacer, 2);
-      },
-      enumerable: true
-      // configurable: false,
+    inst.message = JSON.stringify(def, jsonStringifyReplacer, 2);
+    Object.defineProperty(inst, "toString", {
+      value: () => inst.message,
+      enumerable: false
     });
   };
   const $ZodError = $constructor("$ZodError", initializer);
@@ -298,14 +297,14 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
     return new RegExp(`^${regex}$`);
   };
-  const integer = /^\d+$/;
-  const number$1 = /^-?\d+(?:\.\d+)?/i;
-  const boolean$1 = /true|false/i;
+  const integer = /^-?\d+$/;
+  const number$1 = /^-?\d+(?:\.\d+)?/;
+  const boolean$1 = /^(?:true|false)$/i;
   const $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
-    var _a;
+    var _a2;
     inst._zod ?? (inst._zod = {});
     inst._zod.def = def;
-    (_a = inst._zod).onattach ?? (_a.onattach = []);
+    (_a2 = inst._zod).onattach ?? (_a2.onattach = []);
   });
   const numericOriginMap = {
     number: "number",
@@ -362,6 +361,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
             expected: origin,
             format: def.format,
             code: "invalid_type",
+            continue: false,
             input,
             inst
           });
@@ -414,49 +414,14 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
     };
   });
-  class Doc {
-    constructor(args = []) {
-      this.content = [];
-      this.indent = 0;
-      if (this)
-        this.args = args;
-    }
-    indented(fn) {
-      this.indent += 1;
-      fn(this);
-      this.indent -= 1;
-    }
-    write(arg) {
-      if (typeof arg === "function") {
-        arg(this, { execution: "sync" });
-        arg(this, { execution: "async" });
-        return;
-      }
-      const content = arg;
-      const lines = content.split("\n").filter((x) => x);
-      const minIndent = Math.min(...lines.map((x) => x.length - x.trimStart().length));
-      const dedented = lines.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
-      for (const line of dedented) {
-        this.content.push(line);
-      }
-    }
-    compile() {
-      const F = Function;
-      const args = this?.args;
-      const content = this?.content ?? [``];
-      const lines = [...content.map((x) => `  ${x}`)];
-      return new F(...args, lines.join("\n"));
-    }
-  }
   const version = {
     major: 4,
-    minor: 0,
-    patch: 0
+    minor: 1,
+    patch: 13
   };
   const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
-    var _a;
+    var _a2;
     inst ?? (inst = {});
-    defineLazy(inst._zod, "id", () => def.type + "_" + randomString(10));
     inst._zod.def = def;
     inst._zod.bag = inst._zod.bag || {};
     inst._zod.version = version;
@@ -470,7 +435,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
     }
     if (checks.length === 0) {
-      (_a = inst._zod).deferred ?? (_a.deferred = []);
+      (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
       inst._zod.deferred?.push(() => {
         inst._zod.run = inst._zod.parse;
       });
@@ -479,8 +444,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         let isAborted = aborted(payload);
         let asyncResult;
         for (const ch of checks2) {
-          if (ch._zod.when) {
-            const shouldRun = ch._zod.when(payload);
+          if (ch._zod.def.when) {
+            const shouldRun = ch._zod.def.when(payload);
             if (!shouldRun)
               continue;
           } else if (isAborted) {
@@ -515,7 +480,32 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         }
         return payload;
       };
+      const handleCanaryResult = (canary, payload, ctx) => {
+        if (aborted(canary)) {
+          canary.aborted = true;
+          return canary;
+        }
+        const checkResult = runChecks(payload, checks, ctx);
+        if (checkResult instanceof Promise) {
+          if (ctx.async === false)
+            throw new $ZodAsyncError();
+          return checkResult.then((checkResult2) => inst._zod.parse(checkResult2, ctx));
+        }
+        return inst._zod.parse(checkResult, ctx);
+      };
       inst._zod.run = (payload, ctx) => {
+        if (ctx.skipChecks) {
+          return inst._zod.parse(payload, ctx);
+        }
+        if (ctx.direction === "backward") {
+          const canary = inst._zod.parse({ value: payload.value, issues: [] }, { ...ctx, skipChecks: true });
+          if (canary instanceof Promise) {
+            return canary.then((canary2) => {
+              return handleCanaryResult(canary2, payload, ctx);
+            });
+          }
+          return handleCanaryResult(canary, payload, ctx);
+        }
         const result = inst._zod.parse(payload, ctx);
         if (result instanceof Promise) {
           if (ctx.async === false)
@@ -582,7 +572,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return payload;
     };
   });
-  const $ZodNumberFormat = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
+  const $ZodNumberFormat = /* @__PURE__ */ $constructor("$ZodNumberFormat", (inst, def) => {
     $ZodCheckNumberFormat.init(inst, def);
     $ZodNumber.init(inst, def);
   });
@@ -654,48 +644,83 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return payload;
     };
   });
-  function handleObjectResult(result, final, key) {
+  function handlePropertyResult(result, final, key, input) {
     if (result.issues.length) {
       final.issues.push(...prefixIssues(key, result.issues));
     }
-    final.value[key] = result.value;
-  }
-  function handleOptionalObjectResult(result, final, key, input) {
-    if (result.issues.length) {
-      if (input[key] === void 0) {
-        if (key in input) {
-          final.value[key] = void 0;
-        } else {
-          final.value[key] = result.value;
-        }
-      } else {
-        final.issues.push(...prefixIssues(key, result.issues));
-      }
-    } else if (result.value === void 0) {
-      if (key in input)
+    if (result.value === void 0) {
+      if (key in input) {
         final.value[key] = void 0;
+      }
     } else {
       final.value[key] = result.value;
     }
   }
+  function normalizeDef(def) {
+    const keys = Object.keys(def.shape);
+    for (const k of keys) {
+      if (!def.shape?.[k]?._zod?.traits?.has("$ZodType")) {
+        throw new Error(`Invalid element at key "${k}": expected a Zod schema`);
+      }
+    }
+    const okeys = optionalKeys(def.shape);
+    return {
+      ...def,
+      keys,
+      keySet: new Set(keys),
+      numKeys: keys.length,
+      optionalKeys: new Set(okeys)
+    };
+  }
+  function handleCatchall(proms, input, payload, ctx, def, inst) {
+    const unrecognized = [];
+    const keySet = def.keySet;
+    const _catchall = def.catchall._zod;
+    const t = _catchall.def.type;
+    for (const key in input) {
+      if (keySet.has(key))
+        continue;
+      if (t === "never") {
+        unrecognized.push(key);
+        continue;
+      }
+      const r2 = _catchall.run({ value: input[key], issues: [] }, ctx);
+      if (r2 instanceof Promise) {
+        proms.push(r2.then((r3) => handlePropertyResult(r3, payload, key, input)));
+      } else {
+        handlePropertyResult(r2, payload, key, input);
+      }
+    }
+    if (unrecognized.length) {
+      payload.issues.push({
+        code: "unrecognized_keys",
+        keys: unrecognized,
+        input,
+        inst
+      });
+    }
+    if (!proms.length)
+      return payload;
+    return Promise.all(proms).then(() => {
+      return payload;
+    });
+  }
   const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     $ZodType.init(inst, def);
-    const _normalized = cached(() => {
-      const keys = Object.keys(def.shape);
-      for (const k of keys) {
-        if (!(def.shape[k] instanceof $ZodType)) {
-          throw new Error(`Invalid element at key "${k}": expected a Zod schema`);
+    const desc = Object.getOwnPropertyDescriptor(def, "shape");
+    if (!desc?.get) {
+      const sh = def.shape;
+      Object.defineProperty(def, "shape", {
+        get: () => {
+          const newSh = { ...sh };
+          Object.defineProperty(def, "shape", {
+            value: newSh
+          });
+          return newSh;
         }
-      }
-      const okeys = optionalKeys(def.shape);
-      return {
-        shape: def.shape,
-        keys,
-        keySet: new Set(keys),
-        numKeys: keys.length,
-        optionalKeys: new Set(okeys)
-      };
-    });
+      });
+    }
+    const _normalized = cached(() => normalizeDef(def));
     defineLazy(inst._zod, "propValues", () => {
       const shape = def.shape;
       const propValues = {};
@@ -709,66 +734,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
       return propValues;
     });
-    const generateFastpass = (shape) => {
-      const doc = new Doc(["shape", "payload", "ctx"]);
-      const { keys, optionalKeys: optionalKeys2 } = _normalized.value;
-      const parseStr = (key) => {
-        const k = esc(key);
-        return `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
-      };
-      doc.write(`const input = payload.value;`);
-      const ids = /* @__PURE__ */ Object.create(null);
-      for (const key of keys) {
-        ids[key] = randomString(15);
-      }
-      doc.write(`const newResult = {}`);
-      for (const key of keys) {
-        if (optionalKeys2.has(key)) {
-          const id = ids[key];
-          doc.write(`const ${id} = ${parseStr(key)};`);
-          const k = esc(key);
-          doc.write(`
-        if (${id}.issues.length) {
-          if (input[${k}] === undefined) {
-            if (${k} in input) {
-              newResult[${k}] = undefined;
-            }
-          } else {
-            payload.issues = payload.issues.concat(
-              ${id}.issues.map((iss) => ({
-                ...iss,
-                path: iss.path ? [${k}, ...iss.path] : [${k}],
-              }))
-            );
-          }
-        } else if (${id}.value === undefined) {
-          if (${k} in input) newResult[${k}] = undefined;
-        } else {
-          newResult[${k}] = ${id}.value;
-        }
-        `);
-        } else {
-          const id = ids[key];
-          doc.write(`const ${id} = ${parseStr(key)};`);
-          doc.write(`
-          if (${id}.issues.length) payload.issues = payload.issues.concat(${id}.issues.map(iss => ({
-            ...iss,
-            path: iss.path ? [${esc(key)}, ...iss.path] : [${esc(key)}]
-          })));`);
-          doc.write(`newResult[${esc(key)}] = ${id}.value`);
-        }
-      }
-      doc.write(`payload.value = newResult;`);
-      doc.write(`return payload;`);
-      const fn = doc.compile();
-      return (payload, ctx) => fn(shape, payload, ctx);
-    };
-    let fastpass;
     const isObject$1 = isObject;
-    const jit = !globalConfig.jitless;
-    const allowsEval$1 = allowsEval;
-    const fastEnabled = jit && allowsEval$1.value;
-    const { catchall } = def;
+    const catchall = def.catchall;
     let value;
     inst._zod.parse = (payload, ctx) => {
       value ?? (value = _normalized.value);
@@ -782,61 +749,22 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         });
         return payload;
       }
+      payload.value = {};
       const proms = [];
-      if (jit && fastEnabled && ctx?.async === false && ctx.jitless !== true) {
-        if (!fastpass)
-          fastpass = generateFastpass(def.shape);
-        payload = fastpass(payload, ctx);
-      } else {
-        payload.value = {};
-        const shape = value.shape;
-        for (const key of value.keys) {
-          const el = shape[key];
-          const r2 = el._zod.run({ value: input[key], issues: [] }, ctx);
-          const isOptional = el._zod.optin === "optional" && el._zod.optout === "optional";
-          if (r2 instanceof Promise) {
-            proms.push(r2.then((r3) => isOptional ? handleOptionalObjectResult(r3, payload, key, input) : handleObjectResult(r3, payload, key)));
-          } else if (isOptional) {
-            handleOptionalObjectResult(r2, payload, key, input);
-          } else {
-            handleObjectResult(r2, payload, key);
-          }
+      const shape = value.shape;
+      for (const key of value.keys) {
+        const el = shape[key];
+        const r2 = el._zod.run({ value: input[key], issues: [] }, ctx);
+        if (r2 instanceof Promise) {
+          proms.push(r2.then((r3) => handlePropertyResult(r3, payload, key, input)));
+        } else {
+          handlePropertyResult(r2, payload, key, input);
         }
       }
       if (!catchall) {
         return proms.length ? Promise.all(proms).then(() => payload) : payload;
       }
-      const unrecognized = [];
-      const keySet = value.keySet;
-      const _catchall = catchall._zod;
-      const t = _catchall.def.type;
-      for (const key of Object.keys(input)) {
-        if (keySet.has(key))
-          continue;
-        if (t === "never") {
-          unrecognized.push(key);
-          continue;
-        }
-        const r2 = _catchall.run({ value: input[key], issues: [] }, ctx);
-        if (r2 instanceof Promise) {
-          proms.push(r2.then((r3) => handleObjectResult(r3, payload, key)));
-        } else {
-          handleObjectResult(r2, payload, key);
-        }
-      }
-      if (unrecognized.length) {
-        payload.issues.push({
-          code: "unrecognized_keys",
-          keys: unrecognized,
-          input,
-          inst
-        });
-      }
-      if (!proms.length)
-        return payload;
-      return Promise.all(proms).then(() => {
-        return payload;
-      });
+      return handleCatchall(proms, input, payload, ctx, _normalized.value, inst);
     };
   });
   function handleUnionResults(results, final, inst, ctx) {
@@ -845,6 +773,11 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         final.value = result.value;
         return final;
       }
+    }
+    const nonaborted = results.filter((r2) => !aborted(r2));
+    if (nonaborted.length === 1) {
+      final.value = nonaborted[0].value;
+      return nonaborted[0];
     }
     final.issues.push({
       code: "invalid_union",
@@ -856,6 +789,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   }
   const $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
     $ZodType.init(inst, def);
+    defineLazy(inst._zod, "optin", () => def.options.some((o) => o._zod.optin === "optional") ? "optional" : void 0);
+    defineLazy(inst._zod, "optout", () => def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
     defineLazy(inst._zod, "values", () => {
       if (def.options.every((o) => o._zod.values)) {
         return new Set(def.options.flatMap((option) => Array.from(option._zod.values)));
@@ -869,7 +804,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
       return void 0;
     });
+    const single = def.options.length === 1;
+    const first = def.options[0]._zod.run;
     inst._zod.parse = (payload, ctx) => {
+      if (single) {
+        return first(payload, ctx);
+      }
       let async = false;
       const results = [];
       for (const option of def.options) {
@@ -907,11 +847,13 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         return payload;
       }
       const proms = [];
-      if (def.keyType._zod.values) {
-        const values = def.keyType._zod.values;
+      const values = def.keyType._zod.values;
+      if (values) {
         payload.value = {};
+        const recordKeys = /* @__PURE__ */ new Set();
         for (const key of values) {
           if (typeof key === "string" || typeof key === "number" || typeof key === "symbol") {
+            recordKeys.add(typeof key === "number" ? key.toString() : key);
             const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
             if (result instanceof Promise) {
               proms.push(result.then((result2) => {
@@ -930,7 +872,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
         }
         let unrecognized;
         for (const key in input) {
-          if (!values.has(key)) {
+          if (!recordKeys.has(key)) {
             unrecognized = unrecognized ?? [];
             unrecognized.push(key);
           }
@@ -954,8 +896,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
           }
           if (keyResult.issues.length) {
             payload.issues.push({
-              origin: "record",
               code: "invalid_key",
+              origin: "record",
               issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
               input: key,
               path: [key],
@@ -988,11 +930,15 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   });
   const $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
     $ZodType.init(inst, def);
-    inst._zod.values = new Set(def.values);
-    inst._zod.pattern = new RegExp(`^(${def.values.map((o) => typeof o === "string" ? escapeRegex(o) : o ? o.toString() : String(o)).join("|")})$`);
+    if (def.values.length === 0) {
+      throw new Error("Cannot create literal schema with no valid values");
+    }
+    const values = new Set(def.values);
+    inst._zod.values = values;
+    inst._zod.pattern = new RegExp(`^(${def.values.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$`);
     inst._zod.parse = (payload, _ctx) => {
       const input = payload.value;
-      if (inst._zod.values.has(input)) {
+      if (values.has(input)) {
         return payload;
       }
       payload.issues.push({
@@ -1006,9 +952,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   });
   const $ZodTransform = /* @__PURE__ */ $constructor("$ZodTransform", (inst, def) => {
     $ZodType.init(inst, def);
-    inst._zod.parse = (payload, _ctx) => {
+    inst._zod.parse = (payload, ctx) => {
+      if (ctx.direction === "backward") {
+        throw new $ZodEncodeError(inst.constructor.name);
+      }
       const _out = def.transform(payload.value, payload);
-      if (_ctx.async) {
+      if (ctx.async) {
         const output = _out instanceof Promise ? _out : Promise.resolve(_out);
         return output.then((output2) => {
           payload.value = output2;
@@ -1022,6 +971,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return payload;
     };
   });
+  function handleOptionalResult(result, input) {
+    if (result.issues.length && input === void 0) {
+      return { issues: [], value: void 0 };
+    }
+    return result;
+  }
   const $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def) => {
     $ZodType.init(inst, def);
     inst._zod.optin = "optional";
@@ -1034,6 +989,12 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       return pattern ? new RegExp(`^(${cleanRegex(pattern.source)})?$`) : void 0;
     });
     inst._zod.parse = (payload, ctx) => {
+      if (def.innerType._zod.optin === "optional") {
+        const result = def.innerType._zod.run(payload, ctx);
+        if (result instanceof Promise)
+          return result.then((r2) => handleOptionalResult(r2, payload.value));
+        return handleOptionalResult(result, payload.value);
+      }
       if (payload.value === void 0) {
         return payload;
       }
@@ -1062,6 +1023,9 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     inst._zod.optin = "optional";
     defineLazy(inst._zod, "values", () => def.innerType._zod.values);
     inst._zod.parse = (payload, ctx) => {
+      if (ctx.direction === "backward") {
+        return def.innerType._zod.run(payload, ctx);
+      }
       if (payload.value === void 0) {
         payload.value = def.defaultValue;
         return payload;
@@ -1084,20 +1048,127 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     defineLazy(inst._zod, "values", () => def.in._zod.values);
     defineLazy(inst._zod, "optin", () => def.in._zod.optin);
     defineLazy(inst._zod, "optout", () => def.out._zod.optout);
+    defineLazy(inst._zod, "propValues", () => def.in._zod.propValues);
     inst._zod.parse = (payload, ctx) => {
+      if (ctx.direction === "backward") {
+        const right = def.out._zod.run(payload, ctx);
+        if (right instanceof Promise) {
+          return right.then((right2) => handlePipeResult(right2, def.in, ctx));
+        }
+        return handlePipeResult(right, def.in, ctx);
+      }
       const left = def.in._zod.run(payload, ctx);
       if (left instanceof Promise) {
-        return left.then((left2) => handlePipeResult(left2, def, ctx));
+        return left.then((left2) => handlePipeResult(left2, def.out, ctx));
       }
-      return handlePipeResult(left, def, ctx);
+      return handlePipeResult(left, def.out, ctx);
     };
   });
-  function handlePipeResult(left, def, ctx) {
-    if (aborted(left)) {
+  function handlePipeResult(left, next, ctx) {
+    if (left.issues.length) {
+      left.aborted = true;
       return left;
     }
-    return def.out._zod.run({ value: left.value, issues: left.issues }, ctx);
+    return next._zod.run({ value: left.value, issues: left.issues }, ctx);
   }
+  const $ZodCodec = /* @__PURE__ */ $constructor("$ZodCodec", (inst, def) => {
+    $ZodType.init(inst, def);
+    defineLazy(inst._zod, "values", () => def.in._zod.values);
+    defineLazy(inst._zod, "optin", () => def.in._zod.optin);
+    defineLazy(inst._zod, "optout", () => def.out._zod.optout);
+    defineLazy(inst._zod, "propValues", () => def.in._zod.propValues);
+    inst._zod.parse = (payload, ctx) => {
+      const direction = ctx.direction || "forward";
+      if (direction === "forward") {
+        const left = def.in._zod.run(payload, ctx);
+        if (left instanceof Promise) {
+          return left.then((left2) => handleCodecAResult(left2, def, ctx));
+        }
+        return handleCodecAResult(left, def, ctx);
+      } else {
+        const right = def.out._zod.run(payload, ctx);
+        if (right instanceof Promise) {
+          return right.then((right2) => handleCodecAResult(right2, def, ctx));
+        }
+        return handleCodecAResult(right, def, ctx);
+      }
+    };
+  });
+  function handleCodecAResult(result, def, ctx) {
+    if (result.issues.length) {
+      result.aborted = true;
+      return result;
+    }
+    const direction = ctx.direction || "forward";
+    if (direction === "forward") {
+      const transformed = def.transform(result.value, result);
+      if (transformed instanceof Promise) {
+        return transformed.then((value) => handleCodecTxResult(result, value, def.out, ctx));
+      }
+      return handleCodecTxResult(result, transformed, def.out, ctx);
+    } else {
+      const transformed = def.reverseTransform(result.value, result);
+      if (transformed instanceof Promise) {
+        return transformed.then((value) => handleCodecTxResult(result, value, def.in, ctx));
+      }
+      return handleCodecTxResult(result, transformed, def.in, ctx);
+    }
+  }
+  function handleCodecTxResult(left, value, nextSchema, ctx) {
+    if (left.issues.length) {
+      left.aborted = true;
+      return left;
+    }
+    return nextSchema._zod.run({ value, issues: left.issues }, ctx);
+  }
+  var _a;
+  class $ZodRegistry {
+    constructor() {
+      this._map = /* @__PURE__ */ new WeakMap();
+      this._idmap = /* @__PURE__ */ new Map();
+    }
+    add(schema, ..._meta) {
+      const meta = _meta[0];
+      this._map.set(schema, meta);
+      if (meta && typeof meta === "object" && "id" in meta) {
+        if (this._idmap.has(meta.id)) {
+          throw new Error(`ID ${meta.id} already exists in the registry`);
+        }
+        this._idmap.set(meta.id, schema);
+      }
+      return this;
+    }
+    clear() {
+      this._map = /* @__PURE__ */ new WeakMap();
+      this._idmap = /* @__PURE__ */ new Map();
+      return this;
+    }
+    remove(schema) {
+      const meta = this._map.get(schema);
+      if (meta && typeof meta === "object" && "id" in meta) {
+        this._idmap.delete(meta.id);
+      }
+      this._map.delete(schema);
+      return this;
+    }
+    get(schema) {
+      const p = schema._zod.parent;
+      if (p) {
+        const pm = { ...this.get(p) ?? {} };
+        delete pm.id;
+        const f = { ...pm, ...this._map.get(schema) };
+        return Object.keys(f).length ? f : void 0;
+      }
+      return this._map.get(schema);
+    }
+    has(schema) {
+      return this._map.has(schema);
+    }
+  }
+  function registry() {
+    return new $ZodRegistry();
+  }
+  (_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry());
   function _string(Class, params) {
     return new Class({
       type: "string",
@@ -1148,24 +1219,27 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return _gte(0, params);
   }
   function _stringbool(Classes, _params) {
-    const { case: _case, error, truthy, falsy } = normalizeParams(_params);
-    let truthyArray = truthy ?? ["true", "1", "yes", "on", "y", "enabled"];
-    let falsyArray = falsy ?? ["false", "0", "no", "off", "n", "disabled"];
-    if (_case !== "sensitive") {
+    const params = normalizeParams(_params);
+    let truthyArray = params.truthy ?? ["true", "1", "yes", "on", "y", "enabled"];
+    let falsyArray = params.falsy ?? ["false", "0", "no", "off", "n", "disabled"];
+    if (params.case !== "sensitive") {
       truthyArray = truthyArray.map((v) => typeof v === "string" ? v.toLowerCase() : v);
       falsyArray = falsyArray.map((v) => typeof v === "string" ? v.toLowerCase() : v);
     }
     const truthySet = new Set(truthyArray);
     const falsySet = new Set(falsyArray);
-    const _Pipe = Classes.Pipe ?? $ZodPipe;
+    const _Codec = Classes.Codec ?? $ZodCodec;
     const _Boolean = Classes.Boolean ?? $ZodBoolean;
     const _String = Classes.String ?? $ZodString;
-    const _Transform = Classes.Transform ?? $ZodTransform;
-    const tx = new _Transform({
-      type: "transform",
-      transform: (input, payload) => {
+    const stringSchema = new _String({ type: "string", error: params.error });
+    const booleanSchema = new _Boolean({ type: "boolean", error: params.error });
+    const codec = new _Codec({
+      type: "pipe",
+      in: stringSchema,
+      out: booleanSchema,
+      transform: ((input, payload) => {
         let data = input;
-        if (_case !== "sensitive")
+        if (params.case !== "sensitive")
           data = data.toLowerCase();
         if (truthySet.has(data)) {
           return true;
@@ -1177,35 +1251,29 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
             expected: "stringbool",
             values: [...truthySet, ...falsySet],
             input: payload.value,
-            inst: tx
+            inst: codec,
+            continue: false
           });
           return {};
         }
-      },
-      error
-    });
-    const innerPipe = new _Pipe({
-      type: "pipe",
-      in: new _String({ type: "string", error }),
-      out: tx,
-      error
-    });
-    const outerPipe = new _Pipe({
-      type: "pipe",
-      in: innerPipe,
-      out: new _Boolean({
-        type: "boolean",
-        error
       }),
-      error
+      reverseTransform: ((input, _payload) => {
+        if (input === true) {
+          return truthyArray[0] || "true";
+        } else {
+          return falsyArray[0] || "false";
+        }
+      }),
+      error: params.error
     });
-    return outerPipe;
+    return codec;
   }
   const ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
     if (!inst._zod)
       throw new Error("Uninitialized schema in ZodMiniType.");
     $ZodType.init(inst, def);
     inst.def = def;
+    inst.type = def.type;
     inst.parse = (data, params) => parse(inst, data, params, { callee: inst.parse });
     inst.safeParse = (data, params) => safeParse(inst, data, params);
     inst.parseAsync = async (data, params) => parseAsync(inst, data, params, { callee: inst.parseAsync });
@@ -1224,10 +1292,10 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     };
     inst.clone = (_def, params) => clone(inst, _def, params);
     inst.brand = () => inst;
-    inst.register = (reg, meta) => {
+    inst.register = ((reg, meta) => {
       reg.add(inst, meta);
       return inst;
-    };
+    });
   });
   const ZodMiniString = /* @__PURE__ */ $constructor("ZodMiniString", (inst, def) => {
     $ZodString.init(inst, def);
@@ -1290,10 +1358,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   function object(shape, params) {
     const def = {
       type: "object",
-      get shape() {
-        assignProp(this, "shape", { ...shape });
-        return this.shape;
-      },
+      shape: shape ?? {},
       ...normalizeParams(params)
     };
     return new ZodMiniObject(def);
@@ -1301,14 +1366,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   function looseObject(shape, params) {
     return new ZodMiniObject({
       type: "object",
-      // shape: shape as core.$ZodLooseShape,
-      get shape() {
-        assignProp(this, "shape", { ...shape });
-        return this.shape;
-      },
-      // get optional() {
-      //   return util.optionalKeys(shape);
-      // },
+      shape,
       catchall: unknown(),
       ...normalizeParams(params)
     });
@@ -1389,7 +1447,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       type: "default",
       innerType,
       get defaultValue() {
-        return typeof defaultValue === "function" ? defaultValue() : defaultValue;
+        return typeof defaultValue === "function" ? defaultValue() : shallowClone(defaultValue);
       }
     });
   }
@@ -1404,11 +1462,14 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       out
     });
   }
+  const ZodMiniCodec = /* @__PURE__ */ $constructor("ZodMiniCodec", (inst, def) => {
+    ZodMiniPipe.init(inst, def);
+    $ZodCodec.init(inst, def);
+  });
   const stringbool = (...args) => _stringbool({
-    Pipe: ZodMiniPipe,
+    Codec: ZodMiniCodec,
     Boolean: ZodMiniBoolean,
-    String: ZodMiniString,
-    Transform: ZodMiniTransform
+    String: ZodMiniString
   }, ...args);
   function guard(low, high, value) {
     return Math.min(Math.max(low, value), high);
@@ -1448,7 +1509,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     }
     throw new ColorError$1(color);
   }
-  function hash$1(str) {
+  function hash$2(str) {
     let hash2 = 5381;
     let i = str.length;
     while (i) {
@@ -1469,7 +1530,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   }, {});
   function nameToHex(color) {
     const normalizedColorName = color.toLowerCase().trim();
-    const result = compressedColorMap[hash$1(normalizedColorName)];
+    const result = compressedColorMap[hash$2(normalizedColorName)];
     if (!result) throw new ColorError$1(color);
     return `#${result}`;
   }
@@ -1585,7 +1646,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     }
   };
   /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */
-  var twemoji$1 = function() {
+  var twemoji$1 = (function() {
     var twemoji2 = { base: "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/", ext: ".png", size: "72x72", className: "emoji", convert: { fromCodePoint, toCodePoint }, onerror: function onerror() {
       if (this.parentNode) {
         this.parentNode.replaceChild(createText(this.alt, false), this);
@@ -1725,7 +1786,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       }
       return r2.join(sep || "-");
     }
-  }();
+  })();
   const twemoji = {
     replaceMessage(message) {
       twemoji$1.parse(message);
@@ -3512,11 +3573,11 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
       );
     }
   };
-  function hash(string2) {
-    var index = string2.length;
-    var hashA = 5381;
-    var hashB = 52711;
-    var charCode;
+  function hash$1(string2) {
+    let index = string2.length;
+    let hashA = 5381;
+    let hashB = 52711;
+    let charCode;
     while (index--) {
       charCode = string2.charCodeAt(index);
       hashA = hashA * 33 ^ charCode;
@@ -3524,9 +3585,9 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     }
     return (hashA >>> 0) * 4096 + (hashB >>> 0);
   }
-  var SEPARATOR = "|";
-  var XML_ELEMENT_REGEXP = /\[object ([HTML|SVG](.*)Element)\]/;
-  var CLASSES = {
+  const SEPARATOR = "|";
+  const XML_ELEMENT_REGEXP = /\[object ([HTML|SVG](.*)Element)\]/;
+  const CLASSES = {
     "[object Arguments]": 0,
     "[object Array]": 1,
     "[object ArrayBuffer]": 2,
@@ -3566,18 +3627,18 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     CUSTOM: 36,
     ELEMENT: 37
   };
-  var ARRAY_LIKE_CLASSES = {
+  const ARRAY_LIKE_CLASSES = {
     "[object Arguments]": 1,
     "[object Array]": 2
   };
-  var NON_ENUMERABLE_CLASSES = {
+  const NON_ENUMERABLE_CLASSES = {
     "[object Generator]": 1,
     "[object Promise]": 2,
     "[object WeakMap]": 3,
     "[object WeakRef]": 4,
     "[object WeakSet]": 5
   };
-  var PRIMITIVE_WRAPPER_CLASSES = {
+  const PRIMITIVE_WRAPPER_CLASSES = {
     "[object AsyncFunction]": 1,
     "[object AsyncGeneratorFunction]": 2,
     "[object Boolean]": 3,
@@ -3586,7 +3647,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     "[object Number]": 6,
     "[object String]": 7
   };
-  var TYPED_ARRAY_CLASSES = {
+  const TYPED_ARRAY_CLASSES = {
     "[object BigInt64Array]": 1,
     "[object BigUint64Array]": 2,
     "[object Float32Array]": 3,
@@ -3598,7 +3659,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     "[object Uint16Array]": 9,
     "[object Uint32Array]": 10
   };
-  var RECURSIVE_CLASSES = {
+  const RECURSIVE_CLASSES = {
     "[object Arguments]": 1,
     "[object Array]": 2,
     "[object ArrayBuffer]": 3,
@@ -3619,7 +3680,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     "[object Uint32Array]": 18,
     CUSTOM: 19
   };
-  var HASHABLE_TYPES = {
+  const HASHABLE_TYPES = {
     bigint: "i",
     boolean: "b",
     empty: "e",
@@ -3629,6 +3690,20 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     string: "s",
     symbol: "s"
   };
+  function namespaceComplexValue(classType, value) {
+    return HASHABLE_TYPES.object + SEPARATOR + CLASSES[classType] + SEPARATOR + value;
+  }
+  const NON_ENUMERABLE_CLASS_CACHE = /* @__PURE__ */ new WeakMap();
+  let refId = 0;
+  function getUnsupportedHash(value, classType) {
+    const cached2 = NON_ENUMERABLE_CLASS_CACHE.get(value);
+    if (cached2) {
+      return cached2;
+    }
+    const toCache = namespaceComplexValue(classType, "NOT_ENUMERABLE" + SEPARATOR + refId++);
+    NON_ENUMERABLE_CLASS_CACHE.set(value, toCache);
+    return toCache;
+  }
   function sortByKey(first, second) {
     return first[0] > second[0];
   }
@@ -3636,9 +3711,9 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return first > second;
   }
   function sort(array2, fn) {
-    var subIndex;
-    var value;
-    for (var index = 0; index < array2.length; ++index) {
+    let subIndex;
+    let value;
+    for (let index = 0; index < array2.length; ++index) {
       value = array2[index];
       for (subIndex = index - 1; ~subIndex && fn(array2[subIndex], value); --subIndex) {
         array2[subIndex + 1] = array2[subIndex];
@@ -3647,21 +3722,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     }
     return array2;
   }
-  function namespaceComplexValue(classType, value) {
-    return HASHABLE_TYPES.object + SEPARATOR + CLASSES[classType] + SEPARATOR + value;
-  }
-  var NON_ENUMERABLE_CLASS_CACHE = /* @__PURE__ */ new WeakMap();
-  var refId = 0;
-  function getUnsupportedHash(value, classType) {
-    var cached2 = NON_ENUMERABLE_CLASS_CACHE.get(value);
-    if (cached2) {
-      return cached2;
-    }
-    var toCache = namespaceComplexValue(classType, "NOT_ENUMERABLE" + SEPARATOR + refId++);
-    NON_ENUMERABLE_CLASS_CACHE.set(value, toCache);
-    return toCache;
-  }
-  var toString = Object.prototype.toString;
+  const toString = Object.prototype.toString;
   function stringifyComplexType(value, classType, state) {
     if (RECURSIVE_CLASSES[classType]) {
       return stringifyRecursiveAsJson(classType, value, state);
@@ -3693,7 +3754,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     if (classType === "[object DocumentFragment]") {
       return namespaceComplexValue(classType, stringifyDocumentFragment(value));
     }
-    var element = classType.match(XML_ELEMENT_REGEXP);
+    const element = classType.match(XML_ELEMENT_REGEXP);
     if (element) {
       return namespaceComplexValue("ELEMENT", element[1] + SEPARATOR + value.outerHTML);
     }
@@ -3706,7 +3767,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return stringifyRecursiveAsJson("CUSTOM", value, state);
   }
   function stringifyRecursiveAsJson(classType, value, state) {
-    var cached2 = state.cache.get(value);
+    const cached2 = state.cache.get(value);
     if (cached2) {
       return namespaceComplexValue(classType, "RECURSIVE~" + cached2);
     }
@@ -3738,8 +3799,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return namespaceComplexValue("CUSTOM", stringifyObject(value, state));
   }
   function stringifyArray(value, state) {
-    var index = value.length;
-    var result = new Array(index);
+    let index = value.length;
+    const result = new Array(index);
     while (--index >= 0) {
       result[index] = stringify(value[index], state);
     }
@@ -3755,19 +3816,19 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return "UNSUPPORTED";
   }
   function stringifyDocumentFragment(fragment) {
-    var children = fragment.children;
-    var index = children.length;
-    var innerHTML = new Array(index);
+    const children = fragment.children;
+    let index = children.length;
+    const innerHTML = new Array(index);
     while (--index >= 0) {
       innerHTML[index] = children[index].outerHTML;
     }
     return innerHTML.join();
   }
-  var stringifyArrayBuffer = typeof Buffer !== "undefined" && typeof Buffer.from === "function" ? stringifyArrayBufferModern : typeof Uint16Array === "function" ? stringifyArrayBufferFallback : stringifyArrayBufferNone;
+  const stringifyArrayBuffer = typeof Buffer !== "undefined" && typeof Buffer.from === "function" ? stringifyArrayBufferModern : typeof Uint16Array === "function" ? stringifyArrayBufferFallback : stringifyArrayBufferNone;
   function stringifyMap(map, state) {
-    var result = new Array(map.size);
-    var index = 0;
-    map.forEach(function(value, key) {
+    const result = new Array(map.size);
+    let index = 0;
+    map.forEach((value, key) => {
       result[index++] = [stringify(key, state), stringify(value, state)];
     });
     sort(result, sortByKey);
@@ -3777,30 +3838,35 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     return "[" + result.join() + "]";
   }
   function stringifyObject(value, state) {
-    var properties = sort(Object.getOwnPropertyNames(value), sortBySelf);
-    var length = properties.length;
-    var result = new Array(length);
-    var index = length;
+    const properties = sort(Object.getOwnPropertyNames(value), sortBySelf);
+    const length = properties.length;
+    const result = new Array(length);
+    let index = length;
     while (--index >= 0) {
       result[index] = properties[index] + ":" + stringify(value[properties[index]], state);
     }
     return "{" + result.join() + "}";
   }
   function stringifySet(set, state) {
-    var result = new Array(set.size);
-    var index = 0;
-    set.forEach(function(value) {
+    const result = new Array(set.size);
+    let index = 0;
+    set.forEach((value) => {
       result[index++] = stringify(value, state);
     });
     return "[" + sort(result, sortBySelf).join() + "]";
   }
   function stringify(value, state) {
-    var type = typeof value;
+    const type = typeof value;
     if (value == null || type === "undefined") {
       return HASHABLE_TYPES.empty + value;
     }
     if (type === "object") {
-      return stringifyComplexType(value, toString.call(value), state || { cache: /* @__PURE__ */ new WeakMap(), id: 1 });
+      return stringifyComplexType(
+        value,
+        toString.call(value),
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        state || { cache: /* @__PURE__ */ new WeakMap(), id: 1 }
+      );
     }
     if (type === "function" || type === "symbol") {
       return HASHABLE_TYPES[type] + value.toString();
@@ -3810,8 +3876,8 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
     }
     return HASHABLE_TYPES[type] + value;
   }
-  function hashIt(value) {
-    return hash(stringify(value, void 0));
+  function hash(value) {
+    return hash$1(stringify(value, void 0));
   }
   const Boolean$1 = stringbool();
   const Pronouns = union([
@@ -3925,7 +3991,7 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
           }),
           transform((value) => {
             if (value.displayColor == null || value.displayColor == "") {
-              const index = Math.abs(hashIt(value.userId)) % RANDOM_COLORS.length;
+              const index = Math.abs(hash(value.userId)) % RANDOM_COLORS.length;
               return { ...value, displayColor: RANDOM_COLORS[index] };
             }
             return value;
@@ -4322,12 +4388,12 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
 IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-- hash-it@6.0.0:
+- hash-it@7.0.1:
 Published by planttheidea and licensed under MIT.
 Repository: https://github.com/planttheidea/hash-it
-The MIT License (MIT)
+MIT License
 
-Copyright (c) 2015 Plant The Idea
+Copyright (c) 2025 Tony Quetano
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4346,7 +4412,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 - jsonfile@4.0.0:
 Published by JP Richardson and licensed under MIT.
@@ -4385,41 +4450,6 @@ THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
 OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-- pronouns-chat@7.0.0:
-Licensed under MIT*.
-
-The following files have their license information within the file itself:
-- src/features/ffz.ts
-- src/features/ffz.css
-- streamlabs/custom.css
-- streamlabs/custom.js
-- streamelements/custom.css
-- streamelements/custom.js
-
-All other fies are distributed under the following license:
-
-MIT License
-
-Copyright (c) 2023 Nya
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 - typescript@4.9.5:
 Published by Microsoft Corp. and licensed under Apache-2.0.
@@ -4504,7 +4534,42 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-- zod@3.25.68:
+- woke-chat@7.0.0:
+Licensed under MIT*.
+
+The following files have their license information within the file itself:
+- src/features/ffz.ts
+- src/features/ffz.css
+- streamlabs/custom.css
+- streamlabs/custom.js
+- streamelements/custom.css
+- streamelements/custom.js
+
+All other fies are distributed under the following license:
+
+MIT License
+
+Copyright (c) 2023 Nya
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+- zod@4.1.13:
 Published by Colin McDonnell and licensed under MIT.
 Repository: https://github.com/colinhacks/zod
 MIT License

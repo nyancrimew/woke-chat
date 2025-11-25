@@ -115,6 +115,7 @@ export default defineConfig({
       },
     },
   },
+  esbuild: { legalComments: "inline" },
   publicDir: resolve(__dirname, "static/streamlabs"),
   css: {
     preprocessorOptions: {

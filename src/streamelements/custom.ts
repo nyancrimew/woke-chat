@@ -6,7 +6,7 @@ import { ffz } from "../features/ffz";
 import { pronounsReplacer } from "../features/pronouns-replacer";
 import { Constructor } from "../element-collection";
 import { emotes } from "../features/emotes";
-import hash from "hash-it";
+import { hash } from "hash-it";
 import "./custom.scss";
 
 const Boolean = z.stringbool();
