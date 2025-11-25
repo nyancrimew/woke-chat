@@ -2858,15 +2858,20 @@ const userAgent = "pronouns-chat/7.0.0 (https://github.com/nyancrimew/woke-chat)
   };
   const pronounsReplacer = {
     async replacePronouns(node, userId, username, options) {
+      let foundPronouns = false;
       for (const service of options.services) {
         const pronouns = await service.getPronouns(userId, username);
         if (pronouns != null) {
+          foundPronouns = true;
           node.replaceChildren(
             fontRenderer.getCachedImage(
               options.capitalizePronouns ? pronouns : pronouns.toLowerCase()
             )
           );
           break;
+        }
+        if (!foundPronouns) {
+          node.remove();
         }
       }
     },

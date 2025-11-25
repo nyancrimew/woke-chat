@@ -24,9 +24,11 @@ export const pronounsReplacer = {
   ) {
     // try one service after the other and not in parallel
     // starting with the service of the highest priority
+    let foundPronouns = false;
     for (const service of options.services) {
       const pronouns = await service.getPronouns(userId, username);
       if (pronouns != null) {
+        foundPronouns = true;
         node.replaceChildren(
           fontRenderer.getCachedImage(
             options.capitalizePronouns ? pronouns : pronouns.toLowerCase(),
@@ -34,6 +36,11 @@ export const pronounsReplacer = {
         );
         // first service has preference
         break;
+      }
+
+      // completely remove pronouns node when no pronouns are found
+      if (!foundPronouns) {
+        node.remove();
       }
     }
   },
